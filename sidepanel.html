@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexDown Studio - SortFeed AI & Viral Repurposer</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="nex-app">
+    <!-- Header -->
+    <header class="nex-header">
+      <div class="nex-brand">
+        <span class="nex-logo-icon">⚡</span>
+        <div>
+          <h1 class="nex-title">NexDown Studio</h1>
+          <span class="nex-subtitle">SortFeed AI & Viral Engine</span>
+        </div>
+      </div>
+      <div class="nex-status-pill" id="platform-status">
+        <span class="nex-status-dot"></span>
+        <span id="platform-name">Detectando...</span>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nex-tabs">
+      <button class="nex-tab active" data-tab="tab-studio">🧠 Estúdio IA</button>
+      <button class="nex-tab" data-tab="tab-media">📥 Mídias (<span id="media-count">0</span>)</button>
+      <button class="nex-tab" data-tab="tab-settings">⚙️ Configurações</button>
+    </nav>
+
+    <!-- Tab 1: Estúdio IA (Roteiros & Hooks) -->
+    <section id="tab-studio" class="nex-tab-pane active">
+      <div class="nex-card">
+        <div class="nex-card-header">
+          <span class="nex-card-title">🎯 Conteúdo Ativo</span>
+          <button class="nex-btn-xs" id="refresh-context-btn">↻ Capturar Post da Tela</button>
+        </div>
+        
+        <div class="nex-field">
+          <label>Título / Tema:</label>
+          <input type="text" id="post-title" placeholder="Ex: Segredo dos reels virais..." class="nex-input">
+        </div>
+
+        <div class="nex-field">
+          <label>Legenda / Descrição Original:</label>
+          <textarea id="post-caption" rows="3" placeholder="A legenda do post aparecerá aqui automaticamente..." class="nex-textarea"></textarea>
+        </div>
+
+        <div class="nex-field">
+          <label>Áudio / Transcrição / Notas adicionais:</label>
+          <textarea id="post-transcript" rows="2" placeholder="(Opcional) Cole a transcrição ou o ponto alto do vídeo..." class="nex-textarea"></textarea>
+        </div>
+      </div>
+
+      <!-- Configurações de Estilo de Escrita -->
+      <div class="nex-card">
+        <div class="nex-card-header">
+          <span class="nex-card-title">🎭 Tom de Voz & Formato</span>
+        </div>
+
+        <div class="nex-grid-2">
+          <div class="nex-field">
+            <label>Estilo do Copywriting:</label>
+            <select id="tone-select" class="nex-select">
+              <option value="Alex Hormozi (Direto, alto valor, sem enrolação)">Alex Hormozi (Direto & Alto Valor)</option>
+              <option value="Storytelling Hipnótico (Narrativa, mistério, quebras de padrão)">Storytelling Hipnótico</option>
+              <option value="Oney Araújo / Retenção Extrema (Cortes dinâmicos, hooks visuais)">Retenção Extrema (Oney Style)</option>
+              <option value="Autoridade Educativa (Didático, simples e memorável)">Autoridade Educativa</option>
+              <option value="Provocativo & Contrariano (Quebra de crenças comuns)">Provocativo & Contrariano</option>
+            </select>
+          </div>
+
+          <div class="nex-field">
+            <label>Formato Desejado:</label>
+            <select id="format-select" class="nex-select">
+              <option value="completo">Diagnóstico + 5 Hooks + Roteiro 60s + Carrossel</option>
+              <option value="hooks">Apenas os 5 Ganchos Magnéticos (0-3s)</option>
+              <option value="roteiro">Roteiro Completo com Cortes e Punch-ins</option>
+              <option value="carrossel">Carrossel (7 Slides) + Legenda</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="nex-btn-primary" id="generate-ai-btn">
+          <span>⚡ Gerar Novo Roteiro Viral</span>
+        </button>
+      </div>
+
+      <!-- Área de Resultados -->
+      <div class="nex-card" id="results-card" style="display:none;">
+        <div class="nex-card-header">
+          <span class="nex-card-title" style="color:#F472B6;">✨ Roteiro & Hooks Gerados</span>
+          <div class="nex-card-actions">
+            <button class="nex-btn-xs" id="copy-result-btn">📋 Copiar Tudo</button>
+          </div>
+        </div>
+        <div class="nex-markdown-body" id="ai-output-box"></div>
+      </div>
+    </section>
+
+    <!-- Tab 2: Mídias Detectadas & Bulk Download -->
+    <section id="tab-media" class="nex-tab-pane">
+      <div class="nex-media-toolbar">
+        <button class="nex-btn-sm" id="refresh-media-btn">↻ Atualizar Mídias</button>
+        <button class="nex-btn-sm nex-btn-gradient" id="download-all-btn">📥 Baixar Todas</button>
+      </div>
+      <div id="media-list" class="nex-media-list">
+        <div class="nex-empty-state">
+          Nenhuma mídia capturada ainda. Abra um vídeo, reel ou post para detectar automaticamente.
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 3: Configurações & API Keys -->
+    <section id="tab-settings" class="nex-tab-pane">
+      <div class="nex-card">
+        <div class="nex-card-header">
+          <span class="nex-card-title">🔑 Chave de API da IA</span>
+        </div>
+        <p class="nex-tip">
+          O NexDown utiliza IA de ponta para analisar vídeos e recriar roteiros virais.
+          Recomendamos o <strong>Google Gemini</strong> (possui cota 100% gratuita no Google AI Studio).
+        </p>
+
+        <div class="nex-field">
+          <label>Provedor de IA:</label>
+          <select id="settings-provider" class="nex-select">
+            <option value="gemini">Google Gemini (Grátis & Recomendado)</option>
+            <option value="groq">Groq (Ultra Rápido / Llama 3.3)</option>
+            <option value="openai">OpenAI (ChatGPT / GPT-4o-mini)</option>
+          </select>
+        </div>
+
+        <div class="nex-field">
+          <label>Chave de API (API Key):</label>
+          <input type="password" id="settings-apikey" placeholder="Cole sua API Key aqui..." class="nex-input">
+          <span class="nex-subtext" id="apikey-help-link">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#A78BFA;">Obter chave gratuita no Google AI Studio ↗</a>
+          </span>
+        </div>
+
+        <div class="nex-field">
+          <label>Modelo:</label>
+          <select id="settings-model" class="nex-select">
+            <option value="gemini-1.5-flash">gemini-1.5-flash (Super Rápido & Grátis)</option>
+            <option value="gemini-2.0-flash">gemini-2.0-flash (Nova Geração)</option>
+          </select>
+        </div>
+
+        <div class="nex-field">
+          <label>Instruções Globais Personalizadas (Opcional):</label>
+          <textarea id="settings-custom-prompt" rows="3" class="nex-textarea" placeholder="Ex: 'Sempre mencione meu nicho de Marketing Digital...' ou 'Prefiro uma linguagem mais ácida e bem-humorada'"></textarea>
+        </div>
+
+        <button class="nex-btn-primary" id="save-settings-btn">
+          <span>💾 Salvar Configurações</span>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

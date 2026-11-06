@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexDown Quick</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="nex-popup-container">
+    <div class="nex-popup-header">
+      <div class="nex-popup-brand">
+        <span class="nex-icon">⚡</span>
+        <div>
+          <h2>NexDown</h2>
+          <small>SortFeed AI & Downloader</small>
+        </div>
+      </div>
+      <button class="nex-btn-icon" id="open-settings-btn" title="Configurações">⚙️</button>
+    </div>
+
+    <!-- Quick Action: Side Panel -->
+    <div class="nex-action-banner">
+      <button class="nex-btn-banner" id="open-sidepanel-btn">
+        <span>📐 Abrir Estúdio Lateral (SidePanel)</span>
+      </button>
+    </div>
+
+    <!-- Mídias Detectadas na Aba Atual -->
+    <div class="nex-section-title">
+      <span>Mídias Detectadas (<strong id="media-count">0</strong>)</span>
+      <button class="nex-btn-link" id="refresh-btn">↻ Atualizar</button>
+    </div>
+
+    <div class="nex-popup-media-list" id="popup-media-list">
+      <div class="nex-empty">
+        Nenhuma mídia encontrada na página atual.<br>
+        Role o feed ou dê play em um vídeo.
+      </div>
+    </div>
+
+    <div class="nex-popup-footer">
+      <button class="nex-btn-footer" id="download-all-btn">📥 Baixar Tudo da Página</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

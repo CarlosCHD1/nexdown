@@ -1,0 +1,340 @@
+/* NexDown Studio - Side Panel CSS */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #0A0F1D;
+  color: #F1F5F9;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+.nex-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Header */
+.nex-header {
+  padding: 14px 16px;
+  background: #0F172A;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nex-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nex-logo-icon {
+  font-size: 22px;
+  background: linear-gradient(135deg, #8B5CF6, #EC4899);
+  border-radius: 8px;
+  padding: 2px 6px;
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.4);
+}
+
+.nex-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: -0.2px;
+}
+
+.nex-subtitle {
+  font-size: 11px;
+  color: #94A3B8;
+  display: block;
+}
+
+.nex-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  color: #CBD5E1;
+}
+
+.nex-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10B981;
+  box-shadow: 0 0 8px #10B981;
+}
+
+/* Tabs */
+.nex-tabs {
+  display: flex;
+  background: #0F172A;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 10px;
+}
+
+.nex-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #94A3B8;
+  padding: 10px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nex-tab:hover {
+  color: #F8FAFC;
+}
+
+.nex-tab.active {
+  color: #A78BFA;
+  border-bottom-color: #A78BFA;
+}
+
+/* Panes */
+.nex-tab-pane {
+  display: none;
+  padding: 14px;
+  flex: 1;
+}
+
+.nex-tab-pane.active {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Cards */
+.nex-card {
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.nex-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.nex-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #F8FAFC;
+}
+
+/* Inputs & Form */
+.nex-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.nex-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94A3B8;
+}
+
+.nex-input, .nex-textarea, .nex-select {
+  width: 100%;
+  background: #1F2937;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #F8FAFC;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.nex-input:focus, .nex-textarea:focus, .nex-select:focus {
+  outline: none;
+  border-color: #8B5CF6;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.3);
+}
+
+.nex-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+/* Buttons */
+.nex-btn-primary {
+  width: 100%;
+  background: linear-gradient(135deg, #8B5CF6, #EC4899);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(236, 72, 153, 0.35);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.nex-btn-primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.nex-btn-primary:active {
+  transform: translateY(0);
+}
+
+.nex-btn-xs {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #CBD5E1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.nex-btn-xs:hover {
+  background: rgba(139, 92, 246, 0.3);
+  color: #FFFFFF;
+}
+
+.nex-btn-sm {
+  background: #1F2937;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #F8FAFC;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nex-btn-gradient {
+  background: linear-gradient(135deg, #8B5CF6, #3B82F6);
+  border: none;
+}
+
+.nex-media-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+/* Media List */
+.nex-media-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nex-media-card {
+  background: #1F2937;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.nex-media-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #0F172A;
+}
+
+.nex-media-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.nex-media-type {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #A78BFA;
+  font-weight: 700;
+}
+
+.nex-media-url {
+  font-size: 11px;
+  color: #94A3B8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.nex-empty-state {
+  text-align: center;
+  padding: 30px 20px;
+  color: #64748B;
+  font-size: 12px;
+}
+
+/* Output Box (Markdown) */
+.nex-markdown-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #E2E8F0;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.nex-markdown-body h3 {
+  color: #F472B6;
+  margin: 14px 0 6px 0;
+  font-size: 13.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 4px;
+}
+
+.nex-markdown-body p, .nex-markdown-body li {
+  color: #CBD5E1;
+  margin-bottom: 6px;
+}
+
+.nex-markdown-body strong {
+  color: #F8FAFC;
+}
+
+.nex-tip {
+  font-size: 11.5px;
+  color: #94A3B8;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.nex-subtext {
+  font-size: 11px;
+  margin-top: 4px;
+}
