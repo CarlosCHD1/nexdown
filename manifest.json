@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "NexDown - SortFeed AI & Viral Repurposer",
-  "version": "1.1.0",
-  "description": "Downloader de mídias de todas as redes (Reels, TikTok, Shorts, X) com radar de virais e Estúdio de IA para transcrição, hooks sedutores e roteiros de alta retenção.",
+  "name": "NexDown - Downloader & Viral Repurposer IA",
+  "version": "1.2.0",
+  "description": "Downloader e Repurposer de IA exclusivo para Instagram Reels, TikTok e YouTube Shorts.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -29,14 +29,24 @@
     "sidePanel"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "*://*.instagram.com/*",
+    "*://*.cdninstagram.com/*",
+    "*://*.fbcdn.net/*",
+    "*://*.tiktok.com/*",
+    "*://*.tiktokcdn.com/*",
+    "*://*.youtube.com/*",
+    "*://*.googlevideo.com/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "*://*.instagram.com/*",
+        "*://*.tiktok.com/*",
+        "*://*.youtube.com/*"
+      ],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"

@@ -1,5 +1,5 @@
 // NexDown - Content Script
-// Botão Flutuante Discreto sobre Vídeos Ativos (YouTube Shorts, Instagram Reels, TikTok, X, Threads)
+// Ativo EXCLUSIVAMENTE em: TikTok, Reels do Instagram e YouTube Shorts.
 
 (function () {
   'use strict';
@@ -9,16 +9,34 @@
   let mediaRecorderInstance = null;
   let recordingChunks = [];
 
+  // Verifica se a página atual é um dos 3 alvos exatos
+  function isTargetPage() {
+    const url = window.location.href;
+
+    // 1. YouTube Shorts (apenas /shorts ou contêiner de Shorts ativo)
+    if (url.includes('youtube.com')) {
+      return url.includes('/shorts') || !!document.querySelector('ytd-reel-video-renderer[is-active], ytd-shorts');
+    }
+
+    // 2. Instagram Reels (apenas /reel, /reels ou quando visualizando Reels)
+    if (url.includes('instagram.com')) {
+      return url.includes('/reel') || url.includes('/reels') || !!document.querySelector('article video, div[role="dialog"] video');
+    }
+
+    // 3. TikTok (vídeos do feed ou detalhe de vídeo)
+    if (url.includes('tiktok.com')) {
+      return true;
+    }
+
+    return false;
+  }
+
   function detectPlatform() {
     const host = window.location.hostname;
     if (host.includes('instagram.com')) return 'Instagram';
     if (host.includes('tiktok.com')) return 'TikTok';
     if (host.includes('youtube.com')) return 'YouTube';
-    if (host.includes('twitter.com') || host.includes('x.com')) return 'X';
-    if (host.includes('threads.net')) return 'Threads';
-    if (host.includes('linkedin.com')) return 'LinkedIn';
-    if (host.includes('facebook.com')) return 'Facebook';
-    return 'Web';
+    return null;
   }
 
   // Remove parâmetros que quebram o arquivo MP4 em fragmentos (bytestart, byteend)
@@ -35,7 +53,7 @@
     }
   }
 
-  // Tenta extrair a URL progressiva completa HD do Instagram
+  // Extrai a URL progressiva completa HD do Instagram Reels
   function findInstagramHDVideoUrl(video) {
     if (!video) return null;
 
@@ -84,13 +102,11 @@
   function findTikTokHDVideoUrl(video) {
     if (!video) return null;
 
-    // 1. Verifica src da tag vídeo
     const directSrc = video.src || video.currentSrc;
     if (directSrc && directSrc.startsWith('http') && !directSrc.startsWith('blob:') && !directSrc.includes('.vtt') && !directSrc.includes('caption')) {
       return directSrc;
     }
 
-    // 2. Procura nos dados globais do TikTok (__UNIVERSAL_DATA_FOR_REHYDRATION__)
     const script = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
     if (script && script.textContent) {
       const txt = script.textContent;
@@ -103,7 +119,6 @@
       }
     }
 
-    // 3. Fallback: Procura qualquer outro script com playAddr
     const allScripts = document.querySelectorAll('script');
     for (const s of allScripts) {
       const content = s.textContent || '';
@@ -119,7 +134,7 @@
     return null;
   }
 
-  // Captura direta em alta definição no navegador para YouTube Shorts (100% infalível, sem abas externas)
+  // Captura direta em alta definição no navegador para YouTube Shorts
   function recordAndSaveYouTubeShort(video, buttonEl, title) {
     if (mediaRecorderInstance && mediaRecorderInstance.state === 'recording') {
       mediaRecorderInstance.stop();
@@ -129,7 +144,7 @@
     try {
       const stream = video.captureStream ? video.captureStream() : (video.mozCaptureStream ? video.mozCaptureStream() : null);
       if (!stream) {
-        alert('⚡ NexDown: O navegador não permitiu acesso ao stream de mídia deste vídeo.');
+        alert('⚡ NexDown: O navegador não permitiu acesso ao stream deste short.');
         return;
       }
 
@@ -235,12 +250,6 @@
       const desc = document.querySelector('[data-e2e="browse-video-desc"], [data-e2e="video-desc"]');
       if (desc) caption = desc.innerText;
       title = `TikTok - ${document.title}`;
-    } else if (platform === 'X') {
-      const tweet = video?.closest('article');
-      if (tweet) {
-        const tweetText = tweet.querySelector('div[data-testid="tweetText"]');
-        if (tweetText) caption = tweetText.innerText;
-      }
     }
 
     if (!caption) {
@@ -290,6 +299,14 @@
 
   // Cria e posiciona a pílula flutuante discreta
   function showFloatingPill(video) {
+    if (!isTargetPage()) {
+      if (currentFloatingPill) {
+        currentFloatingPill.remove();
+        currentFloatingPill = null;
+      }
+      return;
+    }
+
     if (!video || !video.isConnected) return;
     activeVideoElement = video;
 
@@ -344,7 +361,7 @@
         return;
       }
 
-      // No Instagram, TikTok e outros
+      // No Instagram Reels e TikTok
       downloadBtn.innerHTML = `<span>⏳ Baixando...</span>`;
       downloadBtn.disabled = true;
 
@@ -404,6 +421,14 @@
 
   // Detecta o vídeo ativo
   function detectActiveVideo() {
+    if (!isTargetPage()) {
+      if (currentFloatingPill) {
+        currentFloatingPill.remove();
+        currentFloatingPill = null;
+      }
+      return;
+    }
+
     const videos = Array.from(document.querySelectorAll('video'));
     if (!videos.length) return;
 

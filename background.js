@@ -1,5 +1,6 @@
 // NexDown - Background Service Worker
 // Gerencia tráfego de rede, downloads de vídeos completos (não-corrompidos) e IA Repurposer.
+// Ativo exclusivamente para: TikTok, Reels do Instagram e YouTube Shorts.
 
 const tabMediaStore = new Map();
 const tabContextStore = new Map();
@@ -29,7 +30,7 @@ function sanitizeMediaUrl(rawUrl) {
   }
 }
 
-// Sniffer de tráfego de rede para detectar mídias
+// Sniffer focado estritamente em TikTok, Instagram e YouTube
 chrome.webRequest.onHeadersReceived.addListener(
   (details) => {
     let { tabId, url, responseHeaders } = details;
@@ -54,7 +55,7 @@ chrome.webRequest.onHeadersReceived.addListener(
                        contentType.includes('vtt') || 
                        contentType.includes('subrip');
 
-    // Se for legenda de TikTok ou YouTube, aproveita para auto-preencher a transcrição da IA!
+    // Se for legenda do TikTok ou YouTube, aproveita para auto-preencher a transcrição da IA
     if (isSubtitle && tabId) {
       fetch(url)
         .then(res => res.text())
@@ -70,39 +71,32 @@ chrome.webRequest.onHeadersReceived.addListener(
           }
         })
         .catch(() => {});
-      return; // Não adiciona legendas como arquivo de vídeo
+      return;
     }
 
     const isInstagram = url.includes('cdninstagram.com') || url.includes('fbcdn.net');
     const isTikTok = url.includes('tiktok.com') || url.includes('tiktokcdn.com');
-    const isTwitter = url.includes('twimg.com') && (url.includes('.mp4') || contentType.includes('video'));
-    const isGenericVideo = contentType.startsWith('video/') || /\.(mp4|webm|m4v)(\?|$)/i.test(url);
 
     // Se for Instagram, remove cortes de fragmento
     if (isInstagram && (url.includes('.mp4') || contentType.includes('video'))) {
       url = sanitizeMediaUrl(url);
     }
 
-    // Regras rígidas para vídeo: NUNCA legendas, tamanho > 50KB ou Content-Type estrito
+    // Apenas vídeos legítimos das 3 redes
     const isRealVideo = !isSubtitle && (
-      contentType.startsWith('video/') ||
       (isInstagram && (url.includes('.mp4') || contentType.includes('video'))) ||
-      (isTikTok && (contentType.startsWith('video/') || url.includes('/video/tos/') || (url.includes('.mp4') && contentLength > 50000))) ||
-      isTwitter ||
-      (isGenericVideo && !url.includes('googlevideo.com/videoplayback') && contentLength > 50000)
+      (isTikTok && (contentType.startsWith('video/') || url.includes('/video/tos/') || (url.includes('.mp4') && contentLength > 50000)))
     );
 
-    const isImage = contentType.startsWith('image/') && !contentType.includes('svg') && contentLength > 25000;
-
-    if (isRealVideo || isImage) {
+    if (isRealVideo) {
       if (!tabMediaStore.has(tabId)) tabMediaStore.set(tabId, []);
       const mediaList = tabMediaStore.get(tabId);
 
       const existingIdx = mediaList.findIndex(m => m.url === url);
       const mediaItem = {
         url,
-        type: isRealVideo ? 'video' : 'image',
-        mimeType: contentType || (isRealVideo ? 'video/mp4' : 'image/jpeg'),
+        type: 'video',
+        mimeType: contentType || 'video/mp4',
         size: contentLength,
         timestamp: Date.now()
       };
@@ -113,11 +107,21 @@ chrome.webRequest.onHeadersReceived.addListener(
         }
       } else {
         mediaList.unshift(mediaItem);
-        if (mediaList.length > 80) mediaList.pop();
+        if (mediaList.length > 50) mediaList.pop();
       }
     }
   },
-  { urls: ['<all_urls>'] },
+  { 
+    urls: [
+      '*://*.instagram.com/*',
+      '*://*.cdninstagram.com/*',
+      '*://*.fbcdn.net/*',
+      '*://*.tiktok.com/*',
+      '*://*.tiktokcdn.com/*',
+      '*://*.youtube.com/*',
+      '*://*.googlevideo.com/*'
+    ] 
+  },
   ['responseHeaders']
 );
 
@@ -171,9 +175,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Download Inteligente (Garante arquivos íntegros e completos)
+// Download Inteligente
 async function handleSmartDownload(tabId, { directSrc, pageUrl, platform, filename }) {
-  // 1. Se temos directSrc válido fornecido pelo content script (não-blob e não-legenda)
   if (directSrc && !directSrc.startsWith('blob:') && directSrc.startsWith('http')) {
     if (!directSrc.includes('.vtt') && !directSrc.includes('caption')) {
       const cleanUrl = sanitizeMediaUrl(directSrc);
@@ -182,9 +185,7 @@ async function handleSmartDownload(tabId, { directSrc, pageUrl, platform, filena
     }
   }
 
-  // 2. Busca nas mídias sniffadas desta aba
   const list = tabMediaStore.get(tabId) || [];
-  // Filtra apenas vídeos legítimos (> 50KB ou sem .vtt) e ordena pelo MAIOR tamanho de arquivo
   const validVideos = list
     .filter(m => m.type === 'video' && !m.url.includes('.vtt') && !m.url.includes('caption'))
     .sort((a, b) => (b.size || 0) - (a.size || 0));
@@ -195,7 +196,7 @@ async function handleSmartDownload(tabId, { directSrc, pageUrl, platform, filena
     return await executeDownload(bestUrl, safeName);
   }
 
-  throw new Error('Nenhum arquivo de vídeo completo foi capturado. Deixe o vídeo tocar por 2 segundos e tente novamente.');
+  throw new Error('Nenhum vídeo completo foi capturado. Deixe o vídeo tocar por 2 segundos e tente novamente.');
 }
 
 // Dispara o download nativo no Chrome
