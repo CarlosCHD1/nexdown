@@ -17,6 +17,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 // Remove parâmetros de fragmentação (bytestart, byteend) para baixar o arquivo COMPLETO
 function sanitizeMediaUrl(rawUrl) {
+  if (!rawUrl) return '';
   try {
     const u = new URL(rawUrl);
     u.searchParams.delete('bytestart');
@@ -51,7 +52,6 @@ chrome.webRequest.onHeadersReceived.addListener(
     const isTwitter = url.includes('twimg.com') && (url.includes('.mp4') || contentType.includes('video'));
     const isGenericVideo = contentType.startsWith('video/') || /\.(mp4|webm|m4v)(\?|$)/i.test(url);
 
-    // Se for Instagram, higieniza o URL para remover fragmentos (bytestart/byteend)
     if (isInstagram && (url.includes('.mp4') || contentType.includes('video'))) {
       url = sanitizeMediaUrl(url);
     }
@@ -67,7 +67,6 @@ chrome.webRequest.onHeadersReceived.addListener(
       if (!tabMediaStore.has(tabId)) tabMediaStore.set(tabId, []);
       const mediaList = tabMediaStore.get(tabId);
 
-      // Não duplicar
       if (!mediaList.some(m => m.url === url)) {
         mediaList.unshift({
           url,
@@ -111,6 +110,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === 'DOWNLOAD_MEDIA') {
+    executeDownload(message.url, message.filename)
+      .then(result => sendResponse({ success: true, result }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
   if (message.action === 'SMART_DOWNLOAD_ACTIVE_VIDEO') {
     handleSmartDownload(tabId, message)
       .then(result => sendResponse({ success: true, result }))
@@ -126,29 +132,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Download Inteligente (Garante arquivos íntegros e completos)
+// Download Inteligente (Nunca abre novas abas indesejadas)
 async function handleSmartDownload(tabId, { directSrc, pageUrl, platform, filename }) {
-  // 1. YouTube Shorts / Videos
-  if (platform === 'YouTube' || (pageUrl && pageUrl.includes('youtube.com'))) {
-    const match = pageUrl.match(/(?:shorts\/|v=|embed\/|watch\?v=)([a-zA-Z0-9_-]{11})/);
-    if (match) {
-      const videoId = match[1];
-      // Abre serviço de download em alta definição com áudio combinado (1080p/720p)
-      const downloadServiceUrl = `https://10downloader.com/download?v=https://www.youtube.com/shorts/${videoId}`;
-      chrome.tabs.create({ url: downloadServiceUrl, active: true });
-      return { service: '10downloader', videoId };
-    }
-    throw new Error('Não foi possível identificar o ID do vídeo do YouTube.');
-  }
-
-  // 2. Se temos directSrc fornecido pelo content script (Progressivo do DOM)
+  // 1. Se temos directSrc válido fornecido pelo content script (Instagram progressivo, TikTok, etc.)
   if (directSrc && !directSrc.startsWith('blob:') && directSrc.startsWith('http')) {
     const cleanUrl = sanitizeMediaUrl(directSrc);
     const safeName = filename || `nexdown_${platform.toLowerCase()}_${Date.now()}.mp4`;
     return await executeDownload(cleanUrl, safeName);
   }
 
-  // 3. Busca nas mídias sniffadas desta aba
+  // 2. Busca nas mídias sniffadas desta aba
   const list = tabMediaStore.get(tabId) || [];
   const videos = list.filter(m => m.type === 'video');
 
@@ -158,16 +151,7 @@ async function handleSmartDownload(tabId, { directSrc, pageUrl, platform, filena
     return await executeDownload(bestUrl, safeName);
   }
 
-  // 4. Fallback especial para Instagram
-  if (platform === 'Instagram' && pageUrl) {
-    // Se não pegou no DOM nem no sniffer, abre o resolver limpo
-    const cleanIgUrl = pageUrl.split('?')[0];
-    const igDownloadService = `https://snapinsta.app/?url=${encodeURIComponent(cleanIgUrl)}`;
-    chrome.tabs.create({ url: igDownloadService, active: true });
-    return { service: 'snapinsta', url: cleanIgUrl };
-  }
-
-  throw new Error('Nenhum vídeo completo foi capturado. Deixe o vídeo tocar por 2 segundos e clique novamente.');
+  throw new Error('Nenhum arquivo de mídia direto detectado para esta publicação.');
 }
 
 // Dispara o download nativo no Chrome

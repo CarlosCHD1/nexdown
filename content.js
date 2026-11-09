@@ -6,6 +6,8 @@
 
   let currentFloatingPill = null;
   let activeVideoElement = null;
+  let mediaRecorderInstance = null;
+  let recordingChunks = [];
 
   function detectPlatform() {
     const host = window.location.hostname;
@@ -37,18 +39,15 @@
   function findInstagramHDVideoUrl(video) {
     if (!video) return null;
 
-    // 1. Se a tag video tiver uma URL direta válida http (e não blob)
     const directSrc = video.src || video.currentSrc;
     if (directSrc && directSrc.startsWith('http') && !directSrc.startsWith('blob:')) {
       return cleanMediaUrl(directSrc);
     }
 
-    // 2. Busca nos scripts embutidos do Instagram onde ele guarda o GraphQL/PolarisFeedItem
     const scripts = document.querySelectorAll('script[type="application/json"], script:not([src])');
     for (const s of scripts) {
       const txt = s.textContent || '';
       if (txt.includes('browser_native_hd_url') || txt.includes('video_versions')) {
-        // Tenta capturar a URL HD
         const hdMatch = txt.match(/"browser_native_hd_url"\s*:\s*"([^"]+)"/) ||
                         txt.match(/"browser_native_sd_url"\s*:\s*"([^"]+)"/) ||
                         txt.match(/"video_versions"\s*:\s*\[\s*\{\s*"[^"]*"\s*:\s*[^,]*,\s*"url"\s*:\s*"([^"]+)"/);
@@ -61,7 +60,6 @@
       }
     }
 
-    // 3. Tenta inspecionar o React Fiber
     try {
       const fiberKey = Object.keys(video).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactProps$'));
       if (fiberKey) {
@@ -80,6 +78,92 @@
     } catch (e) {}
 
     return null;
+  }
+
+  // Captura direta em alta definição no navegador para YouTube Shorts (100% infalível, sem abas externas)
+  function recordAndSaveYouTubeShort(video, buttonEl, title) {
+    if (mediaRecorderInstance && mediaRecorderInstance.state === 'recording') {
+      mediaRecorderInstance.stop();
+      return;
+    }
+
+    try {
+      const stream = video.captureStream ? video.captureStream() : (video.mozCaptureStream ? video.mozCaptureStream() : null);
+      if (!stream) {
+        alert('⚡ NexDown: O navegador não permitiu acesso ao stream de mídia deste vídeo.');
+        return;
+      }
+
+      const preferredMimes = [
+        'video/mp4; codecs="avc1.42E01E, mp4a.40.2"',
+        'video/mp4',
+        'video/webm; codecs=vp9,opus',
+        'video/webm'
+      ];
+      const selectedMime = preferredMimes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+
+      recordingChunks = [];
+      mediaRecorderInstance = new MediaRecorder(stream, { mimeType: selectedMime, videoBitsPerSecond: 6000000 });
+
+      mediaRecorderInstance.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordingChunks.push(e.data);
+      };
+
+      mediaRecorderInstance.onstop = () => {
+        const blob = new Blob(recordingChunks, { type: selectedMime });
+        const url = URL.createObjectURL(blob);
+        const isMp4 = selectedMime.includes('mp4');
+        const ext = isMp4 ? 'mp4' : 'webm';
+        const cleanTitle = (title || 'nexdown_short').replace(/[/\\?%*:|"<>]/g, '_').slice(0, 40);
+        const filename = `${cleanTitle}_${Date.now()}.${ext}`;
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+
+        buttonEl.innerHTML = `<span>✅ Salvo!</span>`;
+        setTimeout(() => {
+          buttonEl.innerHTML = `<span>📥 Baixar Short</span>`;
+          buttonEl.disabled = false;
+        }, 3000);
+        mediaRecorderInstance = null;
+      };
+
+      // Reinicia do início e grava
+      video.currentTime = 0;
+      video.play().catch(() => {});
+
+      mediaRecorderInstance.start(250);
+
+      const duration = Math.ceil(video.duration) || 30;
+      buttonEl.innerHTML = `<span>⏹️ Salvar (${duration}s)</span>`;
+
+      const progressTimer = setInterval(() => {
+        if (!mediaRecorderInstance || mediaRecorderInstance.state !== 'recording') {
+          clearInterval(progressTimer);
+          return;
+        }
+        const remaining = Math.max(0, Math.ceil(duration - video.currentTime));
+        buttonEl.innerHTML = `<span>⏹️ Salvar (${remaining}s)</span>`;
+
+        if (video.currentTime >= duration - 0.4 || video.ended) {
+          clearInterval(progressTimer);
+          if (mediaRecorderInstance && mediaRecorderInstance.state === 'recording') {
+            mediaRecorderInstance.stop();
+          }
+        }
+      }, 500);
+
+    } catch (err) {
+      console.error('Erro na gravação do short:', err);
+      alert('⚡ NexDown: Erro ao capturar o vídeo: ' + err.message);
+      buttonEl.innerHTML = `<span>📥 Baixar Short</span>`;
+      buttonEl.disabled = false;
+    }
   }
 
   // Extrai título, legenda e contexto do post ativo
@@ -188,14 +272,17 @@
       targetContainer.style.position = 'relative';
     }
 
+    const platform = detectPlatform();
+    const downloadLabel = platform === 'YouTube' ? '📥 Baixar Short' : '📥 Baixar MP4';
+
     const pill = document.createElement('div');
     pill.className = 'nexdown-floating-pill';
     pill.innerHTML = `
       <div class="nexdown-pill-brand">
         <span>⚡ NexDown</span>
       </div>
-      <button class="nexdown-pill-btn nexdown-btn-download" title="Baixar Vídeo Completo (MP4)">
-        <span>📥 Baixar</span>
+      <button class="nexdown-pill-btn nexdown-btn-download" title="Baixar Vídeo (Sem abas externas)">
+        <span>${downloadLabel}</span>
       </button>
       <button class="nexdown-pill-btn nexdown-pill-btn-ai" title="Criar Roteiro e 5 Hooks Sedutores com IA">
         <span>🧠 Recriar IA</span>
@@ -211,12 +298,19 @@
       e.stopPropagation();
       e.preventDefault();
 
+      const context = extractActivePostContext(video);
+
+      // No YouTube Shorts: Gravação nativa e direta em alta definição
+      if (platform === 'YouTube') {
+        recordAndSaveYouTubeShort(video, downloadBtn, context.title);
+        return;
+      }
+
+      // No Instagram, TikTok e outros: Download direto do arquivo progressivo limpo
       downloadBtn.innerHTML = `<span>⏳ Baixando...</span>`;
       downloadBtn.disabled = true;
 
-      const platform = detectPlatform();
       let directUrl = null;
-
       if (platform === 'Instagram') {
         directUrl = findInstagramHDVideoUrl(video);
       } else if (platform === 'TikTok') {
@@ -238,13 +332,13 @@
         if (res && res.success) {
           downloadBtn.innerHTML = `<span>✅ Baixado!</span>`;
           setTimeout(() => {
-            downloadBtn.innerHTML = `<span>📥 Baixar</span>`;
+            downloadBtn.innerHTML = `<span>${downloadLabel}</span>`;
           }, 2500);
         } else {
           downloadBtn.innerHTML = `<span>❌ Erro</span>`;
           alert('⚡ NexDown: ' + (res?.error || 'Não foi possível baixar o vídeo diretamente.'));
           setTimeout(() => {
-            downloadBtn.innerHTML = `<span>📥 Baixar</span>`;
+            downloadBtn.innerHTML = `<span>${downloadLabel}</span>`;
           }, 2500);
         }
       });
@@ -271,7 +365,7 @@
     currentFloatingPill = pill;
   }
 
-  // Detecta o vídeo que está em reprodução ou mais visível no centro da tela
+  // Detecta o vídeo ativo
   function detectActiveVideo() {
     const videos = Array.from(document.querySelectorAll('video'));
     if (!videos.length) return;
@@ -309,7 +403,7 @@
     }
   }
 
-  // Modal in-page
+  // Modal in-page de IA
   function openInPageAIRepurposer(video) {
     const existing = document.querySelector('.nexdown-modal-backdrop');
     if (existing) existing.remove();
@@ -431,7 +525,6 @@
     return `<p>${html}</p>`;
   }
 
-  // Eventos de escuta
   document.addEventListener('play', (e) => {
     if (e.target && e.target.tagName === 'VIDEO') {
       showFloatingPill(e.target);
