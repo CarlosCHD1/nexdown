@@ -1,204 +1,85 @@
-/* NexDown - Content Script Styles */
+/* NexDown - Floating Action Pill & Modal Styles */
 
-/* 1. Badge Flutuante sobre Vídeos */
-.nexdown-badge-container {
+/* 1. Botão Flutuante Discreto sobre o Vídeo Ativo */
+.nexdown-floating-pill {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 9999999;
-  display: flex;
+  top: 16px;
+  left: 16px;
+  z-index: 2147483647 !important; /* Sempre no topo */
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 6px 12px;
-  border-radius: 9999px;
-  border: 1px solid rgba(139, 92, 246, 0.4);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 12px rgba(139, 92, 246, 0.25);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
-  color: #F8FAFC;
-  cursor: pointer;
-  opacity: 0.85;
+  gap: 5px;
+  background: rgba(15, 23, 42, 0.82) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  padding: 5px 10px;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(139, 92, 246, 0.35) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 10px rgba(139, 92, 246, 0.25) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 12px !important;
+  color: #F8FAFC !important;
+  opacity: 0.88;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
+  pointer-events: auto !important;
 }
 
-.nexdown-badge-container:hover {
+.nexdown-floating-pill:hover {
   opacity: 1;
-  transform: translateY(-2px) scale(1.02);
-  border-color: rgba(236, 72, 153, 0.6);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 16px rgba(236, 72, 153, 0.35);
+  transform: translateY(-2px);
+  border-color: rgba(236, 72, 153, 0.6) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65), 0 0 14px rgba(236, 72, 153, 0.4) !important;
 }
 
-.nexdown-logo-text {
+.nexdown-pill-brand {
   font-weight: 700;
+  font-size: 12px;
   background: linear-gradient(135deg, #A78BFA, #F472B6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   display: flex;
   align-items: center;
-  gap: 4px;
-  letter-spacing: 0.3px;
+  gap: 3px;
+  padding-right: 4px;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-.nexdown-actions-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 6px;
-  padding-left: 6px;
-  border-left: 1px solid rgba(255, 255, 255, 0.15);
+.nexdown-pill-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #F1F5F9 !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  line-height: 1.2 !important;
+  transition: all 0.15s ease !important;
 }
 
-.nexdown-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #F1F5F9;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: background 0.15s ease, transform 0.15s ease;
+.nexdown-pill-btn:hover {
+  background: rgba(139, 92, 246, 0.35) !important;
+  border-color: rgba(139, 92, 246, 0.6) !important;
+  transform: scale(1.03) !important;
+  color: #FFFFFF !important;
 }
 
-.nexdown-btn:hover {
-  background: rgba(139, 92, 246, 0.3);
-  border-color: rgba(139, 92, 246, 0.5);
-  transform: translateY(-1px);
+.nexdown-pill-btn-ai {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(236, 72, 153, 0.4)) !important;
+  border-color: rgba(236, 72, 153, 0.5) !important;
+  color: #FED7E2 !important;
 }
 
-.nexdown-btn-ai {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.35), rgba(236, 72, 153, 0.35));
-  border-color: rgba(236, 72, 153, 0.5);
-  color: #FED7E2;
+.nexdown-pill-btn-ai:hover {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.7), rgba(236, 72, 153, 0.7)) !important;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.4) !important;
 }
 
-.nexdown-btn-ai:hover {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.6), rgba(236, 72, 153, 0.6));
-  box-shadow: 0 0 10px rgba(236, 72, 153, 0.4);
-}
-
-/* 2. Barra Superior de Radar / SortFeed */
-.nexdown-sorter-bar {
-  width: 100%;
-  background: #0B1120;
-  border-bottom: 2px solid #8B5CF6;
-  padding: 8px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999999;
-  position: sticky;
-  top: 0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-.nexdown-sorter-content {
-  width: 100%;
-  max-width: 1100px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.nexdown-sorter-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #F8FAFC;
-  font-size: 14px;
-}
-
-.nexdown-sorter-tag {
-  background: linear-gradient(135deg, #8B5CF6, #EC4899);
-  padding: 2px 8px;
-  border-radius: 9999px;
-  font-size: 10px;
-  font-weight: 700;
-  color: #FFFFFF;
-}
-
-.nexdown-sorter-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.nexdown-sort-btn {
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #CBD5E1;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.nexdown-sort-btn:hover {
-  background: rgba(139, 92, 246, 0.25);
-  border-color: #8B5CF6;
-  color: #FFFFFF;
-}
-
-.nexdown-sort-btn.active {
-  background: #8B5CF6;
-  border-color: #A78BFA;
-  color: #FFFFFF;
-  box-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
-}
-
-.nexdown-sorter-sidepanel {
-  background: linear-gradient(135deg, #8B5CF6, #EC4899);
-  border: none;
-  color: #FFFFFF;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-}
-
-.nexdown-sorter-sidepanel:hover {
-  transform: scale(1.03);
-}
-
-/* 3. Selo Outlier Viral nos Cards */
-.nexdown-outlier-tag {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  background: linear-gradient(135deg, #EF4444, #F59E0B);
-  color: #FFFFFF;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 4px 8px;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5);
-  z-index: 1000;
-  letter-spacing: 0.5px;
-  pointer-events: none;
-  animation: pulseOutlier 1.8s infinite;
-}
-
-@keyframes pulseOutlier {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-
-/* 4. Modal In-Page */
+/* 2. Modal In-Page Estúdio IA */
 .nexdown-modal-backdrop {
   position: fixed;
   top: 0;
@@ -208,7 +89,7 @@
   background: rgba(15, 23, 42, 0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 10000000;
+  z-index: 2147483647;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -217,7 +98,7 @@
 
 .nexdown-modal-card {
   width: 90%;
-  max-width: 680px;
+  max-width: 660px;
   max-height: 85vh;
   background: #0F172A;
   border-radius: 16px;
@@ -240,7 +121,7 @@
 }
 
 .nexdown-modal-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: #F8FAFC;
   display: flex;
@@ -268,7 +149,7 @@
   padding: 20px;
   overflow-y: auto;
   flex: 1;
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.6;
 }
 
@@ -283,16 +164,17 @@
 
 .nexdown-markdown-content h3 {
   color: #F472B6;
-  margin-top: 18px;
+  margin-top: 16px;
   margin-bottom: 8px;
-  font-size: 15px;
+  font-size: 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: 4px;
 }
 
 .nexdown-markdown-content p, .nexdown-markdown-content li {
   color: #CBD5E1;
-  font-size: 13.5px;
+  font-size: 13px;
+  margin-bottom: 6px;
 }
 
 .nexdown-markdown-content strong {
@@ -301,8 +183,8 @@
 
 .nexdown-spinner {
   display: inline-block;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border: 3px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   border-top-color: #EC4899;
