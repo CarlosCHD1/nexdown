@@ -40,7 +40,7 @@
     if (!video) return null;
 
     const directSrc = video.src || video.currentSrc;
-    if (directSrc && directSrc.startsWith('http') && !directSrc.startsWith('blob:')) {
+    if (directSrc && directSrc.startsWith('http') && !directSrc.startsWith('blob:') && !directSrc.includes('.vtt')) {
       return cleanMediaUrl(directSrc);
     }
 
@@ -76,6 +76,45 @@
         }
       }
     } catch (e) {}
+
+    return null;
+  }
+
+  // Extrai a URL real do vídeo do TikTok (evita pegar arquivo de legenda WebVTT)
+  function findTikTokHDVideoUrl(video) {
+    if (!video) return null;
+
+    // 1. Verifica src da tag vídeo
+    const directSrc = video.src || video.currentSrc;
+    if (directSrc && directSrc.startsWith('http') && !directSrc.startsWith('blob:') && !directSrc.includes('.vtt') && !directSrc.includes('caption')) {
+      return directSrc;
+    }
+
+    // 2. Procura nos dados globais do TikTok (__UNIVERSAL_DATA_FOR_REHYDRATION__)
+    const script = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
+    if (script && script.textContent) {
+      const txt = script.textContent;
+      const playMatch = txt.match(/"playAddr"\s*:\s*"([^"]+)"/) || txt.match(/"downloadAddr"\s*:\s*"([^"]+)"/);
+      if (playMatch && playMatch[1]) {
+        const unescaped = playMatch[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+        if (unescaped.startsWith('http') && !unescaped.includes('.vtt')) {
+          return unescaped;
+        }
+      }
+    }
+
+    // 3. Fallback: Procura qualquer outro script com playAddr
+    const allScripts = document.querySelectorAll('script');
+    for (const s of allScripts) {
+      const content = s.textContent || '';
+      if (content.includes('playAddr') && !content.includes('.vtt')) {
+        const match = content.match(/"playAddr"\s*:\s*"([^"]+)"/);
+        if (match && match[1]) {
+          const url = match[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+          if (url.startsWith('http')) return url;
+        }
+      }
+    }
 
     return null;
   }
@@ -133,7 +172,6 @@
         mediaRecorderInstance = null;
       };
 
-      // Reinicia do início e grava
       video.currentTime = 0;
       video.play().catch(() => {});
 
@@ -300,13 +338,13 @@
 
       const context = extractActivePostContext(video);
 
-      // No YouTube Shorts: Gravação nativa e direta em alta definição
+      // No YouTube Shorts
       if (platform === 'YouTube') {
         recordAndSaveYouTubeShort(video, downloadBtn, context.title);
         return;
       }
 
-      // No Instagram, TikTok e outros: Download direto do arquivo progressivo limpo
+      // No Instagram, TikTok e outros
       downloadBtn.innerHTML = `<span>⏳ Baixando...</span>`;
       downloadBtn.disabled = true;
 
@@ -314,8 +352,7 @@
       if (platform === 'Instagram') {
         directUrl = findInstagramHDVideoUrl(video);
       } else if (platform === 'TikTok') {
-        const src = video.src || video.currentSrc;
-        if (src && !src.startsWith('blob:')) directUrl = cleanMediaUrl(src);
+        directUrl = findTikTokHDVideoUrl(video);
       }
 
       const host = window.location.hostname.replace('www.', '').split('.')[0];
