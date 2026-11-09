@@ -19,7 +19,70 @@
     return 'Web';
   }
 
-  // Extrai título, legenda e contexto do vídeo ativo na tela
+  // Remove parâmetros que quebram o arquivo MP4 em fragmentos (bytestart, byteend)
+  function cleanMediaUrl(rawUrl) {
+    if (!rawUrl) return '';
+    try {
+      const u = new URL(rawUrl);
+      u.searchParams.delete('bytestart');
+      u.searchParams.delete('byteend');
+      u.searchParams.delete('bytelength');
+      return u.toString();
+    } catch (e) {
+      return rawUrl.replace(/([?&])(bytestart|byteend|bytelength)=\d+/g, '').replace(/&&/g, '&');
+    }
+  }
+
+  // Tenta extrair a URL progressiva completa HD do Instagram
+  function findInstagramHDVideoUrl(video) {
+    if (!video) return null;
+
+    // 1. Se a tag video tiver uma URL direta válida http (e não blob)
+    const directSrc = video.src || video.currentSrc;
+    if (directSrc && directSrc.startsWith('http') && !directSrc.startsWith('blob:')) {
+      return cleanMediaUrl(directSrc);
+    }
+
+    // 2. Busca nos scripts embutidos do Instagram onde ele guarda o GraphQL/PolarisFeedItem
+    const scripts = document.querySelectorAll('script[type="application/json"], script:not([src])');
+    for (const s of scripts) {
+      const txt = s.textContent || '';
+      if (txt.includes('browser_native_hd_url') || txt.includes('video_versions')) {
+        // Tenta capturar a URL HD
+        const hdMatch = txt.match(/"browser_native_hd_url"\s*:\s*"([^"]+)"/) ||
+                        txt.match(/"browser_native_sd_url"\s*:\s*"([^"]+)"/) ||
+                        txt.match(/"video_versions"\s*:\s*\[\s*\{\s*"[^"]*"\s*:\s*[^,]*,\s*"url"\s*:\s*"([^"]+)"/);
+        if (hdMatch && hdMatch[1]) {
+          const unescaped = hdMatch[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+          if (unescaped.startsWith('http')) {
+            return cleanMediaUrl(unescaped);
+          }
+        }
+      }
+    }
+
+    // 3. Tenta inspecionar o React Fiber
+    try {
+      const fiberKey = Object.keys(video).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactProps$'));
+      if (fiberKey) {
+        let node = video[fiberKey];
+        while (node) {
+          const props = node.memoizedProps || node.pendingProps;
+          if (props?.videoData?.video_versions?.[0]?.url) {
+            return cleanMediaUrl(props.videoData.video_versions[0].url);
+          }
+          if (props?.src && typeof props.src === 'string' && props.src.startsWith('http')) {
+            return cleanMediaUrl(props.src);
+          }
+          node = node.return;
+        }
+      }
+    } catch (e) {}
+
+    return null;
+  }
+
+  // Extrai título, legenda e contexto do post ativo
   function extractActivePostContext(video) {
     let caption = '';
     let title = document.title || 'Vídeo';
@@ -80,12 +143,11 @@
     return context;
   }
 
-  // Encontra o melhor contêiner pai para ancorar o botão flutuante
+  // Encontra o contêiner adequado
   function findTargetContainer(video) {
     const platform = detectPlatform();
 
     if (platform === 'YouTube') {
-      // No YouTube Shorts, o contêiner ativo perfeito é o ytd-reel-video-renderer[is-active]
       const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]');
       if (activeShort) {
         return activeShort.querySelector('#player-container') || activeShort;
@@ -104,7 +166,7 @@
     return video.parentElement;
   }
 
-  // Cria e posiciona a barra flutuante discreta
+  // Cria e posiciona a pílula flutuante discreta
   function showFloatingPill(video) {
     if (!video || !video.isConnected) return;
     activeVideoElement = video;
@@ -112,18 +174,15 @@
     const targetContainer = findTargetContainer(video);
     if (!targetContainer) return;
 
-    // Se a pill já está no contêiner correto, não recria
     if (currentFloatingPill && currentFloatingPill.parentElement === targetContainer) {
       return;
     }
 
-    // Remove a anterior se houver
     if (currentFloatingPill) {
       currentFloatingPill.remove();
       currentFloatingPill = null;
     }
 
-    // Garante position relative no pai
     const computedPos = window.getComputedStyle(targetContainer).position;
     if (computedPos === 'static') {
       targetContainer.style.position = 'relative';
@@ -135,7 +194,7 @@
       <div class="nexdown-pill-brand">
         <span>⚡ NexDown</span>
       </div>
-      <button class="nexdown-pill-btn nexdown-btn-download" title="Baixar Vídeo (MP4)">
+      <button class="nexdown-pill-btn nexdown-btn-download" title="Baixar Vídeo Completo (MP4)">
         <span>📥 Baixar</span>
       </button>
       <button class="nexdown-pill-btn nexdown-pill-btn-ai" title="Criar Roteiro e 5 Hooks Sedutores com IA">
@@ -146,7 +205,7 @@
       </button>
     `;
 
-    // 1. Ação de Download Inteligente
+    // 1. Download
     const downloadBtn = pill.querySelector('.nexdown-btn-download');
     downloadBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -156,13 +215,21 @@
       downloadBtn.disabled = true;
 
       const platform = detectPlatform();
-      const directSrc = video.src || video.currentSrc;
+      let directUrl = null;
+
+      if (platform === 'Instagram') {
+        directUrl = findInstagramHDVideoUrl(video);
+      } else if (platform === 'TikTok') {
+        const src = video.src || video.currentSrc;
+        if (src && !src.startsWith('blob:')) directUrl = cleanMediaUrl(src);
+      }
+
       const host = window.location.hostname.replace('www.', '').split('.')[0];
       const filename = `nexdown_${host}_${Date.now()}.mp4`;
 
       chrome.runtime.sendMessage({
         action: 'SMART_DOWNLOAD_ACTIVE_VIDEO',
-        directSrc: directSrc,
+        directSrc: directUrl,
         pageUrl: window.location.href,
         platform: platform,
         filename: filename
@@ -183,7 +250,7 @@
       });
     });
 
-    // 2. Ação de Recriar com IA
+    // 2. Recriar IA
     const aiBtn = pill.querySelector('.nexdown-pill-btn-ai');
     aiBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -191,7 +258,7 @@
       openInPageAIRepurposer(video);
     });
 
-    // 3. Abrir Side Panel
+    // 3. SidePanel
     const sidepanelBtn = pill.querySelector('.nexdown-btn-sidepanel');
     sidepanelBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -209,17 +276,14 @@
     const videos = Array.from(document.querySelectorAll('video'));
     if (!videos.length) return;
 
-    // 1. Prioridade: Vídeo que está dando play
     let playingVideo = videos.find(v => !v.paused && v.offsetWidth > 150 && v.offsetHeight > 150);
 
-    // 2. No YouTube Shorts, procura o renderer ativo
     const platform = detectPlatform();
     if (platform === 'YouTube') {
       const activeShort = document.querySelector('ytd-reel-video-renderer[is-active] video');
       if (activeShort) playingVideo = activeShort;
     }
 
-    // 3. No Instagram Reels, procura o vídeo visível no viewport central
     if (!playingVideo) {
       const windowCenterY = window.innerHeight / 2;
       let minDistance = Infinity;
@@ -230,7 +294,6 @@
           const videoCenterY = rect.top + (rect.height / 2);
           const distance = Math.abs(windowCenterY - videoCenterY);
 
-          // Se estiver visível no viewport
           if (rect.top < window.innerHeight && rect.bottom > 0) {
             if (distance < minDistance) {
               minDistance = distance;
@@ -246,7 +309,7 @@
     }
   }
 
-  // Modal in-page para IA Repurposer
+  // Modal in-page
   function openInPageAIRepurposer(video) {
     const existing = document.querySelector('.nexdown-modal-backdrop');
     if (existing) existing.remove();
@@ -368,7 +431,7 @@
     return `<p>${html}</p>`;
   }
 
-  // Eventos de detecção contínua e leve
+  // Eventos de escuta
   document.addEventListener('play', (e) => {
     if (e.target && e.target.tagName === 'VIDEO') {
       showFloatingPill(e.target);
@@ -388,9 +451,6 @@
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // Checagem periódica a cada 1.2s para garantir transições de Shorts/Reels
   setInterval(detectActiveVideo, 1200);
-
-  // Execução inicial
   setTimeout(detectActiveVideo, 600);
 })();

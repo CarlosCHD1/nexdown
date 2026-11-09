@@ -1,5 +1,5 @@
 // NexDown - Background Service Worker
-// Gerencia sniffer de tráfego de rede, downloads inteligentes e chamadas às LLMs (Gemini, OpenAI, Groq).
+// Gerencia tráfego de rede, downloads não-corrompidos e chamadas às LLMs (Gemini, OpenAI, Groq).
 
 const tabMediaStore = new Map();
 const tabContextStore = new Map();
@@ -9,16 +9,29 @@ if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => {});
 }
 
-// Limpeza ao fechar aba
+// Limpeza de abas fechadas
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabMediaStore.delete(tabId);
   tabContextStore.delete(tabId);
 });
 
-// Sniffer de requisições de mídia em tempo real
+// Remove parâmetros de fragmentação (bytestart, byteend) para baixar o arquivo COMPLETO
+function sanitizeMediaUrl(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    u.searchParams.delete('bytestart');
+    u.searchParams.delete('byteend');
+    u.searchParams.delete('bytelength');
+    return u.toString();
+  } catch (e) {
+    return rawUrl.replace(/([?&])(bytestart|byteend|bytelength)=\d+/g, '').replace(/&&/g, '&');
+  }
+}
+
+// Sniffer de tráfego de rede para detectar mídias
 chrome.webRequest.onHeadersReceived.addListener(
   (details) => {
-    const { tabId, url, responseHeaders } = details;
+    let { tabId, url, responseHeaders } = details;
     if (tabId < 0) return;
     if (/(analytics|tracking|pixel|favicon|sprite|doubleclick|\.svg)/i.test(url)) return;
 
@@ -33,40 +46,37 @@ chrome.webRequest.onHeadersReceived.addListener(
       }
     }
 
-    // Padrões de mídias de alta precisão
-    const isInstagramVideo = (url.includes('cdninstagram.com') || url.includes('fbcdn.net')) && (url.includes('.mp4') || contentType.includes('video'));
-    const isTikTokVideo = url.includes('tiktokcdn.com') || (contentType.includes('video') && url.includes('tiktok'));
-    const isYouTubeStream = url.includes('googlevideo.com/videoplayback');
-    const isTwitterVideo = url.includes('twimg.com') && (url.includes('.mp4') || contentType.includes('video'));
+    const isInstagram = url.includes('cdninstagram.com') || url.includes('fbcdn.net');
+    const isTikTok = url.includes('tiktokcdn.com');
+    const isTwitter = url.includes('twimg.com') && (url.includes('.mp4') || contentType.includes('video'));
     const isGenericVideo = contentType.startsWith('video/') || /\.(mp4|webm|m4v)(\?|$)/i.test(url);
 
-    const isImage = contentType.startsWith('image/') && !contentType.includes('svg') && contentLength > 25000;
-    const isAudio = contentType.startsWith('audio/') || /\.(mp3|m4a|wav|aac)(\?|$)/i.test(url);
+    // Se for Instagram, higieniza o URL para remover fragmentos (bytestart/byteend)
+    if (isInstagram && (url.includes('.mp4') || contentType.includes('video'))) {
+      url = sanitizeMediaUrl(url);
+    }
 
-    if (isInstagramVideo || isTikTokVideo || isYouTubeStream || isTwitterVideo || isGenericVideo || isImage || isAudio) {
+    const isVideo = (isInstagram && (url.includes('.mp4') || contentType.includes('video'))) ||
+                    (isTikTok && (url.includes('.mp4') || contentType.includes('video'))) ||
+                    isTwitter ||
+                    (isGenericVideo && !url.includes('googlevideo.com/videoplayback'));
+
+    const isImage = contentType.startsWith('image/') && !contentType.includes('svg') && contentLength > 25000;
+
+    if (isVideo || isImage) {
       if (!tabMediaStore.has(tabId)) tabMediaStore.set(tabId, []);
       const mediaList = tabMediaStore.get(tabId);
 
-      // Evita duplicatas idênticas de URL
-      const existingIdx = mediaList.findIndex(m => m.url === url);
-      const isVid = isInstagramVideo || isTikTokVideo || isYouTubeStream || isTwitterVideo || isGenericVideo;
-
-      const mediaItem = {
-        url,
-        type: isVid ? 'video' : (isAudio ? 'audio' : 'image'),
-        mimeType: contentType || (isVid ? 'video/mp4' : 'image/jpeg'),
-        size: contentLength,
-        timestamp: Date.now()
-      };
-
-      if (existingIdx !== -1) {
-        // Atualiza timestamp e tamanho se for maior
-        if (contentLength > mediaList[existingIdx].size) {
-          mediaList[existingIdx] = mediaItem;
-        }
-      } else {
-        mediaList.unshift(mediaItem);
-        if (mediaList.length > 100) mediaList.pop();
+      // Não duplicar
+      if (!mediaList.some(m => m.url === url)) {
+        mediaList.unshift({
+          url,
+          type: isVideo ? 'video' : 'image',
+          mimeType: contentType || (isVideo ? 'video/mp4' : 'image/jpeg'),
+          size: contentLength,
+          timestamp: Date.now()
+        });
+        if (mediaList.length > 80) mediaList.pop();
       }
     }
   },
@@ -82,15 +92,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const list = tabMediaStore.get(tabId) || [];
     const context = tabContextStore.get(tabId) || null;
     sendResponse({ success: true, media: list, context });
-    return true;
-  }
-
-  if (message.action === 'GET_BEST_ACTIVE_VIDEO') {
-    const list = tabMediaStore.get(tabId) || [];
-    const videos = list.filter(m => m.type === 'video');
-    // Retorna o vídeo mais recente ou com maior tamanho
-    const best = videos.length > 0 ? videos[0] : null;
-    sendResponse({ success: !!best, video: best, count: videos.length });
     return true;
   }
 
@@ -110,13 +111,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === 'DOWNLOAD_MEDIA') {
-    handleDownload(message.url, message.filename)
-      .then(downloadId => sendResponse({ success: true, downloadId }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
-
   if (message.action === 'SMART_DOWNLOAD_ACTIVE_VIDEO') {
     handleSmartDownload(tabId, message)
       .then(result => sendResponse({ success: true, result }))
@@ -132,45 +126,53 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Download Inteligente (Resolve blob, mídias sniffadas ou fallback de alta qualidade)
+// Download Inteligente (Garante arquivos íntegros e completos)
 async function handleSmartDownload(tabId, { directSrc, pageUrl, platform, filename }) {
-  // 1. Se tem directSrc e não é blob
-  if (directSrc && !directSrc.startsWith('blob:') && directSrc.startsWith('http')) {
-    const safeName = filename || `nexdown_${platform.toLowerCase()}_${Date.now()}.mp4`;
-    return await handleDownload(directSrc, safeName);
+  // 1. YouTube Shorts / Videos
+  if (platform === 'YouTube' || (pageUrl && pageUrl.includes('youtube.com'))) {
+    const match = pageUrl.match(/(?:shorts\/|v=|embed\/|watch\?v=)([a-zA-Z0-9_-]{11})/);
+    if (match) {
+      const videoId = match[1];
+      // Abre serviço de download em alta definição com áudio combinado (1080p/720p)
+      const downloadServiceUrl = `https://10downloader.com/download?v=https://www.youtube.com/shorts/${videoId}`;
+      chrome.tabs.create({ url: downloadServiceUrl, active: true });
+      return { service: '10downloader', videoId };
+    }
+    throw new Error('Não foi possível identificar o ID do vídeo do YouTube.');
   }
 
-  // 2. Busca na lista de mídias interceptadas nesta aba
+  // 2. Se temos directSrc fornecido pelo content script (Progressivo do DOM)
+  if (directSrc && !directSrc.startsWith('blob:') && directSrc.startsWith('http')) {
+    const cleanUrl = sanitizeMediaUrl(directSrc);
+    const safeName = filename || `nexdown_${platform.toLowerCase()}_${Date.now()}.mp4`;
+    return await executeDownload(cleanUrl, safeName);
+  }
+
+  // 3. Busca nas mídias sniffadas desta aba
   const list = tabMediaStore.get(tabId) || [];
   const videos = list.filter(m => m.type === 'video');
 
   if (videos.length > 0) {
-    // Escolhe o vídeo mais relevante (maior tamanho ou mais recente)
-    const bestVideo = videos[0];
+    const bestUrl = sanitizeMediaUrl(videos[0].url);
     const safeName = filename || `nexdown_${platform.toLowerCase()}_${Date.now()}.mp4`;
-    return await handleDownload(bestVideo.url, safeName);
+    return await executeDownload(bestUrl, safeName);
   }
 
-  // 3. Tratamento específico para YouTube Shorts
-  if (platform === 'YouTube' || (pageUrl && pageUrl.includes('youtube.com'))) {
-    // Para YouTube, se não pegou stream direta, usa o downloader rápido
-    const videoIdMatch = pageUrl.match(/(?:shorts\/|v=)([a-zA-Z0-9_-]{11})/);
-    if (videoIdMatch) {
-      const videoId = videoIdMatch[1];
-      const directDownloadUrl = `https://www.y2mate.com/youtube/${videoId}`;
-      chrome.tabs.create({ url: directDownloadUrl, active: false });
-      return { fallbackTabOpened: true, url: directDownloadUrl };
-    }
+  // 4. Fallback especial para Instagram
+  if (platform === 'Instagram' && pageUrl) {
+    // Se não pegou no DOM nem no sniffer, abre o resolver limpo
+    const cleanIgUrl = pageUrl.split('?')[0];
+    const igDownloadService = `https://snapinsta.app/?url=${encodeURIComponent(cleanIgUrl)}`;
+    chrome.tabs.create({ url: igDownloadService, active: true });
+    return { service: 'snapinsta', url: cleanIgUrl };
   }
 
-  throw new Error('Nenhuma faixa de vídeo foi capturada ainda. Dê play no vídeo por 1 ou 2 segundos e tente novamente.');
+  throw new Error('Nenhum vídeo completo foi capturado. Deixe o vídeo tocar por 2 segundos e clique novamente.');
 }
 
-// Download nativo no Chrome
-async function handleDownload(url, filename) {
-  const safeFilename = filename 
-    ? filename.replace(/[/\\?%*:|"<>]/g, '_') 
-    : `nexdown_${Date.now()}.mp4`;
+// Dispara o download nativo no Chrome
+async function executeDownload(url, filename) {
+  const safeFilename = filename.replace(/[/\\?%*:|"<>]/g, '_');
 
   return new Promise((resolve, reject) => {
     chrome.downloads.download({
@@ -181,7 +183,7 @@ async function handleDownload(url, filename) {
       if (chrome.runtime.lastError) {
         reject(chrome.runtime.lastError);
       } else {
-        resolve(downloadId);
+        resolve({ downloadId, filename: safeFilename });
       }
     });
   });
